@@ -30,14 +30,14 @@ Options when CMD is present:
   * Keep system running (display will stay on)
 * `3am --ac-wake -- /tmp/processData.sh /tmp/dataToBeProcessed.txt`
   * Run `/tmp/processData.sh /tmp/dataToBeProcessed.txt`
-  * If the device is connected to power, don't go to sleep if Sleep is requested
+  * If the device is connected to power, only turn off display if sleep mode is entered
 * `3am --ac-wake -v -- /tmp/processData.sh /tmp/dataToBeProcessed.txt`
   * Run `/tmp/processData.sh /tmp/dataToBeProcessed.txt`
-  * If the device is connected to power, don't go to sleep if Sleep is requested
+  * If the device is connected to power, only turn off display if sleep mode is entered
   * This will output status information
 * `3am --ac-wake -v -- /tmp/processData.sh /tmp/dataToBeProcessed.txt 3>/tmp/output.txt`
   * Run `/tmp/processData.sh /tmp/dataToBeProcessed.txt`
-  * If the device is connected to power, don't go to sleep if Sleep is requested
+  * If the device is connected to power, only turn off display if sleep mode is entered
   * This will output status information into `/tmp/output.txt`
 
 ---
