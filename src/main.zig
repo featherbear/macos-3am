@@ -3,63 +3,119 @@ const c = @cImport({
     @cInclude("IOKit/pwr_mgt/IOPMLib.h");
 });
 
-pub fn main() !void {
+fn createAssertion(assertionType: [*c]const u8) c.IOPMAssertionID {
     var assertion_id: c.IOPMAssertionID = 0;
 
-    for ([_][*c]const u8{
-        // !!! Use this one
-        // Description: This prevents the display from going to sleep, but does not prevent the system from entering full sleep mode.
-        // Use Case: When you want to keep the display on (e.g., during media playback or presentations) but still allow the system to sleep in other respects, such as turning off the hard drive or putting the system to sleep after a period of inactivity.
-        // Effect: The display stays awake, but the system may still sleep (e.g., the CPU or disk may go to sleep).
-        // ! This one is used by video playback
-        // "NoDisplaySleepAssertion", // screen stays on
+    _ = c.IOPMAssertionCreateWithName(
+        c.CFStringCreateWithCString(null, assertionType, c.kCFStringEncodingUTF8),
+        c.kIOPMAssertionLevelOn,
+        c.CFStringCreateWithCString(null, "awong6 test no sleep", c.kCFStringEncodingUTF8),
+        &assertion_id,
+    );
 
-        // This one is more specific, only for idle transitions
-        // Description: This prevents the display from going to sleep when the user is idle.
-        // Use Case: Useful in cases where you want to ensure that the display remains active even if the user is not interacting with the system (e.g., in kiosks, digital signage, or if the system is performing a task that requires visual feedback).
-        // Effect: Display sleep is prevented when the user is idle, but the system could still go to sleep or enter other sleep states based on the system's own inactivity settings.
-        // ! This one is used by audio devices
-        // "PreventUserIdleDisplaySleep", // screen stays on
+    return assertion_id;
+}
 
-        //
-        //
-        //
+pub fn main() !void {
+    var allocatorBacking = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = allocatorBacking.allocator();
 
-        // !!! Use this one
-        // Description: Prevents idle sleep, which is sleep triggered after a period of user inactivity.
-        // Use Case: This would be used when you need to keep the system awake due to some activity (like a process running in the background) but don’t need to prevent display sleep or system sleep entirely.
-        // Effect: The system will not go to sleep due to inactivity, but other sleep behaviors (such as display sleep) might still be allowed
-        // ! This one is used by audio devices
-        "NoIdleSleepAssertion", // screen goes off and asks for password
+    var cmdline = std.ArrayList([]const u8).init(allocator);
+    defer cmdline.deinit();
 
-        // Description: Prevents the system from entering sleep due to user inactivity.
-        // Use Case: This is often used in situations where you don’t want the system to sleep while the user isn’t actively interacting with it but are okay with other forms of system sleep or energy-saving behaviors.
-        // Effect: Prevents system sleep triggered by user idle time, but other sleep or power-saving behaviors (like display sleep or disk sleep) may still occur.
-        // "PreventUserIdleSystemSleep", // screen went off, kept running and asked for password
+    var flags: struct { displayWake: bool, sleepWakeOnAC: bool, verbose: bool } = undefined;
 
-        //
-        //
-        //
+    {
+        var argsIter = try std.process.argsWithAllocator(allocator);
+        defer argsIter.deinit();
 
-        // Description: This assertion prevents the system from entering sleep mode entirely, regardless of user activity or inactivity.
-        // Use Case: You would use this assertion when you want to make sure that the entire system remains awake, such as during long-running background tasks or when a critical application needs uninterrupted system resources.
-        // Effect: System sleep is fully prevented.
-        "PreventSystemSleep", // this works only on AC
-        //
-        //
-        //
-    }) |assertionType| {
-        _ = c.IOPMAssertionCreateWithName(
-            c.CFStringCreateWithCString(null, assertionType, c.kCFStringEncodingUTF8),
-            c.kIOPMAssertionLevelOn,
-            c.CFStringCreateWithCString(null, "awong6 test no sleep", c.kCFStringEncodingUTF8),
-            &assertion_id,
-        );
+        var captureCmdline = false;
+        _ = argsIter.skip();
+        while (argsIter.next()) |arg| {
+            if (captureCmdline) {
+                try cmdline.append(arg);
+            } else {
+                if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
+                    const stderr = std.io.getStdErr().writer();
+                    try stderr.print("Usage: [OPTIONS] [-- [CMD]]\n", .{});
+                    try stderr.print("Options:\n", .{});
+                    try stderr.print("  -d, --display-wake   Keep screen active\n", .{});
+                    try stderr.print("  -s, --ac-wake        Always keep device active when on AC\n", .{});
+                    try stderr.print("  -h, --help           Display this help message\n", .{});
+                    try stderr.print("Options when CMD is present:\n", .{});
+                    try stderr.print("  -v, --verbose        Output status information (optionally uses fd=3)\n", .{});
+                    return;
+                } else if (std.mem.eql(u8, arg, "-d") or std.mem.eql(u8, arg, "--display-wake")) {
+                    flags.displayWake = true;
+                } else if (std.mem.eql(u8, arg, "-s") or std.mem.eql(u8, arg, "--ac-wake")) {
+                    flags.sleepWakeOnAC = true;
+                } else if (std.mem.eql(u8, arg, "-v") or std.mem.eql(u8, arg, "--verbose")) {
+                    flags.verbose = true;
+                } else if (std.mem.eql(u8, arg, "--")) {
+                    captureCmdline = true;
+                }
+            }
+        }
     }
 
-    std.debug.print("Sleep blocked.\n", .{});
-    _ = try std.io.getStdIn().reader().readByte();
+    // Either output to stderr, or to file descriptor 3 if it's open
+    const stdlog = (std.fs.File{ .handle = if (std.c.fcntl(3, 1) != -1) 3 else std.io.getStdErr().handle }).writer();
+    const isCmdline = cmdline.items.len != 0;
 
-    std.debug.print("System sleep allowed again.\n", .{});
+    if (flags.displayWake) {
+        _ = createAssertion("NoDisplaySleepAssertion");
+        if (!isCmdline or flags.verbose) {
+            try stdlog.print("Display wake lock set.\n", .{});
+        }
+    } else {
+        _ = createAssertion("NoIdleSleepAssertion");
+        if (!isCmdline or flags.verbose) {
+            try stdlog.print("Idle wake lock set.\n", .{});
+        }
+    }
+
+    if (flags.sleepWakeOnAC) {
+        _ = createAssertion("PreventSystemSleep");
+        if (!isCmdline or flags.verbose) {
+            try stdlog.print("AC wake lock set.\n", .{});
+        }
+    }
+
+    if (!isCmdline) {
+        try stdlog.print("Press [ENTER] to clear wake locks...", .{});
+        _ = try std.io.getStdIn().reader().readByte();
+    } else {
+        const pid = try std.posix.fork();
+
+        if (pid == 0) {
+            // I think it's an illegal convention to use std.process.execv here but oh well
+            switch (std.process.execv(allocator, cmdline.items)) {
+                error.FileNotFound => {
+                    try stdlog.print("Command not found.\n", .{});
+                    return;
+                },
+                error.AccessDenied => {
+                    try stdlog.print("Permission denied.\n", .{});
+                    return;
+                },
+                else => {
+                    try stdlog.print("Could not execute.\n", .{});
+                    return;
+                },
+            }
+
+            unreachable;
+        } else if (pid > 0) {
+            if (flags.verbose) {
+                try stdlog.print("Waiting for process completion...\n", .{});
+            }
+            _ = std.posix.waitpid(pid, 0);
+        }
+    }
+
+    if (!isCmdline or flags.verbose) {
+        try stdlog.print("Wake locks cleared.\n", .{});
+    }
+
     // _ = c.IOPMAssertionRelease(assertion_id);
 }
