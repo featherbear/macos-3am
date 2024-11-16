@@ -9,7 +9,7 @@ fn createAssertion(assertionType: [*c]const u8) c.IOPMAssertionID {
     _ = c.IOPMAssertionCreateWithName(
         c.CFStringCreateWithCString(null, assertionType, c.kCFStringEncodingUTF8),
         c.kIOPMAssertionLevelOn,
-        c.CFStringCreateWithCString(null, "awong6 test no sleep", c.kCFStringEncodingUTF8),
+        c.CFStringCreateWithCString(null, "featherbear:3am wake lock", c.kCFStringEncodingUTF8),
         &assertion_id,
     );
 
