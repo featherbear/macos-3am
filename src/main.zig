@@ -38,11 +38,12 @@ pub fn main() !void {
                 if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
                     const stderr = std.io.getStdErr().writer();
                     try stderr.print("Usage: [OPTIONS] [-- [CMD]]\n", .{});
-                    try stderr.print("Options:\n", .{});
-                    try stderr.print("  -d, --display-wake   Keep screen active\n", .{});
-                    try stderr.print("  -s, --ac-wake        Always keep device active when on AC\n", .{});
+                    try stderr.print("\nPrevents the system from sleeping\n", .{});
+                    try stderr.print("\nOptions:\n", .{});
+                    try stderr.print("  -d, --display-wake   Keep display active\n", .{});
+                    try stderr.print("  -s, --ac-wake        (On AC) Keep system active if lid closed or sleep requested\n", .{});
                     try stderr.print("  -h, --help           Display this help message\n", .{});
-                    try stderr.print("Options when CMD is present:\n", .{});
+                    try stderr.print("\nOptions when CMD is present:\n", .{});
                     try stderr.print("  -v, --verbose        Output status information (optionally uses fd=3)\n", .{});
                     return;
                 } else if (std.mem.eql(u8, arg, "-d") or std.mem.eql(u8, arg, "--display-wake")) {
