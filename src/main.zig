@@ -23,7 +23,11 @@ pub fn main() !void {
     var cmdline = std.ArrayList([]const u8).init(allocator);
     defer cmdline.deinit();
 
-    var flags: struct { displayWake: bool, sleepWakeOnAC: bool, verbose: bool } = undefined;
+    var flags = struct { displayWake: bool, sleepWakeOnAC: bool, verbose: bool }{
+        .displayWake = false,
+        .sleepWakeOnAC = false,
+        .verbose = false,
+    };
 
     {
         var argsIter = try std.process.argsWithAllocator(allocator);
