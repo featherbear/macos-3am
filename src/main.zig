@@ -96,15 +96,15 @@ pub fn main() !void {
             // I think it's an illegal convention to use std.process.execv here but oh well
             switch (std.process.execv(allocator, cmdline.items)) {
                 error.FileNotFound => {
-                    try stdlog.print("Command not found.\n", .{});
+                    try stdlog.print("Error: Command not found.\n", .{});
                     return;
                 },
                 error.AccessDenied => {
-                    try stdlog.print("Permission denied.\n", .{});
+                    try stdlog.print("Error: Permission denied.\n", .{});
                     return;
                 },
                 else => {
-                    try stdlog.print("Could not execute.\n", .{});
+                    try stdlog.print("Error: Could not execute.\n", .{});
                     return;
                 },
             }
