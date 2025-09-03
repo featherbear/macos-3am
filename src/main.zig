@@ -68,11 +68,15 @@ pub fn main() !void {
     const isCmdline = cmdline.items.len != 0;
 
     if (flags.displayWake) {
+        // The idle display will not sleep when enabled, and consequently the system will not idle sleep.
+        // This one keeps the display awake whilst preventing the device from idle sleeping
         _ = createAssertion("NoDisplaySleepAssertion");
         if (!isCmdline or flags.verbose) {
             try stdlog.print("Display wake lock set.\n", .{});
         }
     } else {
+        // The system will not idle sleep when enabled (display may sleep). Note that the system may sleep for other reasons.
+        // This one stops the system from entering sleep when the device is idle.
         _ = createAssertion("NoIdleSleepAssertion");
         if (!isCmdline or flags.verbose) {
             try stdlog.print("Idle wake lock set.\n", .{});
@@ -80,6 +84,8 @@ pub fn main() !void {
     }
 
     if (flags.sleepWakeOnAC) {
+        // Prevents the system from sleeping and allows the system to reside in Dark Wake for an arbitrary length of time.
+        // Whilst on AC, even if you manually press sleep, background services and network activities will continue
         _ = createAssertion("PreventSystemSleep");
         if (!isCmdline or flags.verbose) {
             try stdlog.print("AC wake lock set.\n", .{});
